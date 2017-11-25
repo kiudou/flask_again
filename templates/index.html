@@ -1,14 +1,15 @@
 
-{% extends "base.html" %}
+{% extends "base.html" %} <!--继承base.html-->
+{% import "bootstrap/wtf.html" as wtf %} <!--进行表单渲染-->
 
 {% block title %}Flasky{% endblock %}
 
 {% block page_content %}
 <div class="page-header">
-    <h1>Hello World!</h1>
+    <h1>Hello, {% if name %} {{ name }}{% else %}Stranger{% endif %}!</h1>
 </div>
+{{ wtf.quick_form(form) }}
+
 <!--format('LLL')根据客户端电脑中的时区和区域设置渲染时期和时间，参数决定渲染方式，L到LLL分别对应不同的复杂度-->
 <!--fromNow()渲染相对时间戳.指定refresh后，如果一直呆在这个页面，会看到显示的文本变成a minute ago，2 minutes ago-->
-<p>The local date and time is {{ moment(current_time).format('LLL') }}.</p>
-<p>That was {{ moment(current_time).fromNow(refresh=True) }}.</p>
 {% endblock %}

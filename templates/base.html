@@ -40,6 +40,13 @@
 <!--内容-->
 {% block content%}
 <div class="container">
+	<!--Flask把get_flashed_messages()函数开放给模板，用来获取并渲染消息，data-dismiss带有可取消的警告-->
+	{% for message in get_flashed_messages() %}
+	<div class="alert alert-warning">
+		<button type="button" class="close" data-dismiss="alert">&times;</button>
+		{{ message }}
+	</div>
+	{% endfor %}
 	{% block page_content %}{% endblock %}
 </div>
 {% endblock %}
