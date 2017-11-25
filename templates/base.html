@@ -1,0 +1,45 @@
+{% extends "bootstrap/base.html" %}
+{% block title %}Flasky{% endblock %}
+
+<!--定义收藏夹图标-->
+{% block head %}
+{{ super()}}
+<link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static',filename = 'favicon.ico') }}">
+<link rel="icon" type="image/x-icon" href="{{ url_for('static',filename = 'favicon.ico') }}">
+{% endblock %}
+
+<!--引入moment.js库-->
+{% block scripts %}
+{{ super() }}
+{{ moment.include_moment() }}
+{% endblock %}
+
+<!--导航条-->
+{% block navbar%}
+<div class="navbar navbar-inverse" role="navigation">
+	<div class="container">
+		<div class="navbar-header">
+			<button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+				<!--Bootstrap 折叠（Collapse）插件,或者自定义的一些效果属性-->
+				<span class="sr-only">Toggle navigation</span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+				<span class="icon-bar"></span>
+			</button>
+			<a class="navbar-brand" href="/">Flask</a>
+		</div>
+		<div class="navbar-collapse collapse">
+			<ul class="nav navbar-nav">
+				<li><a href="/">Home</a>></li>
+			</ul>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
+<!--内容-->
+{% block content%}
+<div class="container">
+	{% block page_content %}{% endblock %}
+</div>
+{% endblock %}
