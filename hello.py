@@ -9,6 +9,8 @@ from wtforms import StringField, SubmitField
 from wtforms.validators import Required
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate, MigrateCommand
+from flask_mail import Mail, Message
+from threading import Thread
 import os
 
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -21,7 +23,19 @@ app.config['SQLALCHEMY_DATABASE_URI'] =\
 app.config['SQLALCHEMY_COMMIT_ON_TEARDOWN'] = True #True代表每次请求结束后都会自动提交数据库的变动
 app.config['SECRET_KEY'] = 'hard to guess string' #app.config字典可用于储存框架，扩展和程序本身的配置变量
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# 配置Flask-Mail 使用Gmail和集成发
+app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['FLASKY_ADMIN'] = os.environ.get('FLASKY_ADMIN') #邮件的收件人管理员
+#集成发送电子邮件功能
+app.config['FLASKY_MAIL_SUBJECT_PREFIX'] = '[Flasky]' #邮件主题的前缀
+app.config['FLASKY_MAIL_SENDER'] = 'Flasky Admin <flasky@example.com>' #发件人的地址
 
+
+mail = Mail(app)
 bootstrap = Bootstrap(app) #对flask-Bootstrap的初始化
 moment =  Moment(app) #初始化
 db = SQLAlchemy(app) #db是SQLAlchemy的实例表示程序使用的数据库，还获得Flask-SQLAlchemy提供的所有功能
@@ -34,6 +48,20 @@ def make_shell_context(): #注册了程序，数据库实例以及模型
     return dict(app=app, db=db, User=User, Role=Role)
 manager.add_command("shell", Shell(make_context=make_shell_context))
 
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg) #使用current_app,所以必须激活程序上下文
+
+#函数参数为收件人的地址，主题，渲染邮件正文的模板，关键字参数列表，异步发送邮件
+def send_email(to, subject, template, **kwargs):
+    msg = Message(app.config['FLASKY_MAIL_SUBJECT_PREFIX'] + subject,
+                  sender=app.config['FLASKY_MAIL_SENDER'], recipients=[to])
+    msg.body = render_template(template + '.txt', **kwargs)
+    msg.html = render_template(template + '.html', **kwargs)
+    thr = Thread(target=send_async_email, args=[app, msg])
+    thr.start()
+    return thr
+
 #render_template 返回的页面
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -44,6 +72,8 @@ def index():
             user = User(username=form.name.data)
             db.session.add(user)
             session['known'] = False
+            if app.config['FLASKY_ADMIN']:
+                send_email(app.config['FLASKY_ADMIN'], 'New User', 'mail/new_user', user=user)
         else:
             session['known'] = True
         session['name'] = form.name.data  # 用户会话，用于储存请求之间需要记住的值的字典
@@ -94,5 +124,5 @@ class User(db.Model):
 
 
 if __name__ == '__main__':
-	# app.run(debug=True) #True为启用调试模式
+    #app.run(debug=True) #True为启用调试模式
 	manager.run()
