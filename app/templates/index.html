@@ -4,16 +4,18 @@
 
 {% block title %}Flasky{% endblock %}
 
+<!--current_user.is_authenticated判断用户是否已经登陆-->
 {% block page_content %}
 <div class="page-header">
-    <h1>Hello, {% if name %} {{ name }}{% else %}Stranger{% endif %}!</h1>
-    {% if not known %}
-    <p>Please to meet you!</p>
-    {% else %}
-    <p>Happy to see you again!</p>
-    {% endif %}
+	<h1>
+		hello,
+	    {% if current_user.is_authenticated %}
+	    	{{ current_user.username }}
+	    {% else %}
+	    	Stranger
+	    {% endif %}	
+    </h1>
 </div>
-{{ wtf.quick_form(form) }}
 {% endblock %}
 <!--format('LLL')根据客户端电脑中的时区和区域设置渲染时期和时间，参数决定渲染方式，L到LLL分别对应不同的复杂度-->
 <!--fromNow()渲染相对时间戳.指定refresh后，如果一直呆在这个页面，会看到显示的文本变成a minute ago，2 minutes ago-->

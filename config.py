@@ -9,6 +9,7 @@ class Config:
 	FLASKY_MAIL_SUBJECT_PREFIX = '[Flasky]'
 	FLASKY_MAIL_SENDER = 'Flasky Admin <flasky@example.com>'
 	FLASKY_ADMIN = os.environ.get('FLASKY_ADMIN')
+	SQLALCHEMY_TRACK_MODIFICATIONS = True
 
 	#参数是程序的实例，这个方法中可以执行对当前环境的配置初始化
 	@staticmethod
