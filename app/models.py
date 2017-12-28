@@ -6,6 +6,9 @@ from . import login_manager
 from flask import current_app
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from flask_login import UserMixin, AnonymousUserMixin
+from datetime import datetime
+import hashlib
+from flask import request
 
 class Role(db.Model): #创建角色
     __tablename__ = 'roles' #定义在数据库中使用的表名
@@ -56,6 +59,13 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
     confirmed = db.Column(db.Boolean, default=False)
 
 
+    name = db.Column(db.String(64)) #真是姓名
+    location = db.Column(db.String(64)) #所在地
+    about_me = db.Column(db.Text()) #自我介绍，string和text的区别是后者不需要指定最大长度
+    member_since = db.Column(db.DateTime(), default=datetime.utcnow) #注册日期
+    last_seen = db.Column(db.DateTime(), default=datetime.utcnow) #最后访问时间
+    avatar_hash = db.Column(db.String(32)) #使用缓存的MD5散列值生成Gravatar URL
+
     def __init__(self, **kwargs):
         """
         User类的构造函数首先调用基类的构造函数，如果创建基类对象后还没有定义角色，
@@ -67,7 +77,8 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
                 self.role = Role.query.filter_by(permissions=0xff).first()
             if self.role is None:
                 self.role = Role.query.filter_by(default=True).first()
-
+        if self.email is not None and self.avatar_hash is None:
+            self.avatar_hash = self.gravatar_hash()
 
     """
     计算密码散列值的函数通过名为password的只写属性实现。
@@ -107,9 +118,24 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
     # 在请求和赋予角色这两种权限之间进行位与操作，如果角色中包含请求的所有权限位，则返回True,表示允许用户执行此操作
     def can(self, permissions):
         return self.role is not None and (self.role.permissions & permissions) == permissions
-
     def is_administrator(self):
         return self.can(Permission.ADMINISTER)
+
+    #刷新用户的最后访问时间
+    def ping(self):
+        self.last_seen = datetime.utcnow()
+        db.session.add(self)
+
+    def gravatar(self, size=100, default='identicon', rating='g'): #构建gravatar URL,用于生成头像
+        if request.is_secure:
+            url = 'https://secure.gravatar.com/avatar'
+        else:
+            url = 'https://www.gravatar.com/avatar'
+        hash = hashlib.md5(self.email.encode('utf-8')).hexdigest()
+        return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
+            url=url, hash=hash, size=size, default=default, rating=rating)
+
+
 
 #程序不用先检查用户是否登陆，就能自由调用current_user.can()和current_user.ia_administrator
 class AnonymousUser(AnonymousUserMixin):
