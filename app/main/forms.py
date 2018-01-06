@@ -8,6 +8,7 @@ from wtforms import ValidationError
 from ..models import Role, User
 from wtforms import StringField, TextAreaField, BooleanField, SelectField,\
     SubmitField
+from flask_pagedown.fields import PageDownField
 
 class NameForm(Form): #web登陆表单
     # 文本字段,StringField表示属性为type="text"的<input>属性,可选参数validators指定一个由验证函数组成的列表
@@ -52,3 +53,10 @@ class EditProfileAdminForm(FlaskForm):
     def validate_username(self, field):
         if field.data != self.user.username and User.query.filter_by(username=field.data).first():
             raise ValidationError('Username already in use.')
+
+
+class PostForm(Form): #博客文章表单
+    body = PageDownField("what's on your mind?", validators=[Required()])
+    submit = SubmitField('submit')
+
+

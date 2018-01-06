@@ -9,6 +9,41 @@ from flask_login import UserMixin, AnonymousUserMixin
 from datetime import datetime
 import hashlib
 from flask import request
+from markdown import markdown
+import bleach
+
+class Post(db.Model): #文章模型
+    __tablename__ = 'posts'
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    body_html = db.Column(db.Text)
+
+    # @staticmethod
+    # def generate_fake(count=100):
+    #     from random import seed, randint
+    #     import forgery_py
+    #
+    #     seed()
+    #     user_count = User.query.count()
+    #     for i in range(count):
+    #         u = User.query.offset(randint(0, user_count -1)).first() #该过滤器会跳过参数中制定的记录数量，设定偏移值，获得一个不同的随机用户
+    #         p = Post(body=forgery_py.lorem_ipsum.sentences(randint(1,3)),
+    #                  timestamp=forgery_py.date.date(True),
+    #                  author=u)
+    #         db.session.add(p)
+    #         db.session.commit()
+
+    @staticmethod
+    def on_changed_body(target, value, oldvalue, initiator):
+        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'blockquote', 'code', 'em', 'i',
+                        'li', 'ol', 'pre', 'strong', 'ul', 'h1', 'h2', 'h3', 'p']
+        target.body_html = bleach.linkify(bleach.clean(
+            markdown(value, output_format='html'),
+            tags=allowed_tags, strip=True))
+
+db.event.listen(Post.body, 'set', Post.on_changed_body)
 
 class Role(db.Model): #创建角色
     __tablename__ = 'roles' #定义在数据库中使用的表名
@@ -65,7 +100,7 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
     member_since = db.Column(db.DateTime(), default=datetime.utcnow) #注册日期
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow) #最后访问时间
     avatar_hash = db.Column(db.String(32)) #使用缓存的MD5散列值生成Gravatar URL
-
+    posts = db.relationship('Post', backref='author', lazy='dynamic')
     def __init__(self, **kwargs):
         """
         User类的构造函数首先调用基类的构造函数，如果创建基类对象后还没有定义角色，
@@ -117,6 +152,8 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
 
     # 在请求和赋予角色这两种权限之间进行位与操作，如果角色中包含请求的所有权限位，则返回True,表示允许用户执行此操作
     def can(self, permissions):
+        print(self.role)
+        return True
         return self.role is not None and (self.role.permissions & permissions) == permissions
     def is_administrator(self):
         return self.can(Permission.ADMINISTER)
@@ -125,6 +162,9 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
     def ping(self):
         self.last_seen = datetime.utcnow()
         db.session.add(self)
+
+    def gravatar_hash(self):
+        return hashlib.md5(self.email.lower().encode('utf-8')).hexdigest()
 
     def gravatar(self, size=100, default='identicon', rating='g'): #构建gravatar URL,用于生成头像
         if request.is_secure:
@@ -135,12 +175,33 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
         return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
             url=url, hash=hash, size=size, default=default, rating=rating)
 
+    @staticmethod #生成虚拟用户和博客文章
+    def generate_fake(count=100):
+        from sqlalchemy.exc import IntegrityError
+        from random import seed
+        import forgery_py
+
+        seed() #seed() 方法改变随机数生成器的种子，可以在调用其他随机模块函数之前调用此函数
+        for i in range(count): #信息随机生成
+            u = User(email=forgery_py.internet.email_address(),
+                     username=forgery_py.internet.user_name(),
+                     password=forgery_py.lorem_ipsum.word(),
+                     confirmed=True,
+                     name=forgery_py.name.full_name(),
+                     location=forgery_py.address.city(),
+                     about_me=forgery_py.lorem_ipsum.sentence(),
+                     member_since=forgery_py.date.date(True))
+            db.session.add(u)
+            try:
+                db.session.commit()
+            except IntegrityError:
+                db.session.rollback() #如果信息有重复的，则进行回滚，不写入数据库
 
 
 #程序不用先检查用户是否登陆，就能自由调用current_user.can()和current_user.ia_administrator
 class AnonymousUser(AnonymousUserMixin):
     def can(self, permissions):
-        return False
+       return False
     def is_administrator(self):
         return False
 

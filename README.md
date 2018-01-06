@@ -8,7 +8,7 @@ requirements.txt  用于记录所有依赖包及其精确的版本号
 
 用以下命令将虚拟环境生成文件
 
-	(venv) $ pip freeze >requirements.txt
+	(venv) $ pip freeze > requirements.txt
 
 创建新的虚拟环境，用以下命令
 
@@ -35,5 +35,7 @@ init表示初始化迁移，创建migration文件夹
 migrate根据model.py的结构变化更新迁移
 
 upgrade会迁移最新版本的结构应用到数据库
+
+### 如果之前已经创建过migrations，则只要使用后两步就行 ###
 
 ----------
