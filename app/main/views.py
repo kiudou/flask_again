@@ -1,14 +1,14 @@
 #coding:utf-8
 from datetime import datetime
-from flask import render_template, session, redirect, url_for, flash,current_app, request
+from flask import render_template, session, redirect, url_for, flash,current_app, request, make_response
 from flask import abort
 from flask_login import login_required, current_user
 from . import main
 from .forms import NameForm,EditProfileForm,EditProfileAdminForm, PostForm
 from ..email import send_email
 from .. import db
-from ..models import User, Permission,Post
-from ..decorators import admin_required
+from ..models import User, Permission, Post
+from ..decorators import admin_required, permission_required
 
 
 @main.route('/',methods=['GET', 'POST'])
@@ -19,19 +19,27 @@ def index():
         db.session.add(post)
         return redirect(url_for('.index'))
     page = request.args.get('page', 1, type=int) #默认为第一页，type=int参数表示无法转换成整数时，返回默认值
-    pagination = Post.query.order_by(Post.timestamp.desc()).paginate( #为了显示某页中的记录，用paginate
+    show_followed = False
+    if current_user.is_authenticated:
+        show_followed = bool(request.cookies.get('show_followed', ''))
+    if show_followed:
+        query = current_user.followed_posts
+    else:
+        query = Post.query
+    pagination = query.order_by(Post.timestamp.desc()).paginate( #为了显示某页中的记录，用paginate
         page, per_page=20,error_out=False) #False页数超出范围返回空列表,True页数超出范围，返回404错误
     posts = pagination.items #当前页面中的记录
-    return render_template('index.html', form=form, posts=posts, pagination=pagination)
+    return render_template('index.html', form=form, posts=posts, show_followed=show_followed, pagination=pagination)
 
 #对于名为john的用户，资料页面为http://localhost:5000/user/john
 @main.route('/user/<username>')
 def user(username):
-    user = User.query.filter_by(username=username).first()
-    if user is None:
-        abort(404)
-    posts = user.posts.order_by(Post.timestamp.desc()).all()
-    return render_template('user.html', user=user, posts=posts)
+    user = User.query.filter_by(username=username).first_or_404()
+    page = request.args.get('page', 1, type=int)
+    pagination = user.posts.order_by(Post.timestamp.desc()).paginate(
+        page, per_page=20,error_out=False)
+    posts = pagination.items
+    return render_template('user.html', user=user, posts=posts, pagination=pagination)
 
 
 #普通用户路由
@@ -98,3 +106,86 @@ def edit(id): #作者编辑文章
         return redirect(url_for('.post', id=post.id))
     form.body.data = post.body
     return render_template('edit_post.html', form=form)
+
+
+@main.route('/follow/<username>')
+@login_required
+@permission_required(Permission.FOLLOW)
+def follow(username): #关注用户
+    """
+     该视图函数先加载请求的用户，确保当前用户存在且当前登陆用户还没有关注这个用户，
+     然后调用User模型中定义的辅助方法follow()
+    """
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('Invalid user')
+        return redirect(url_for('.index'))
+    if current_user.is_following(user):
+        flash('You are already following this year')
+        return redirect(url_for('.user', username=username))
+    current_user.follow(user)
+    flash('You are now following %s.' %username)
+    return redirect(url_for('.user', username= username))
+
+
+@main.route('/unfollow/<username>')
+@login_required
+@permission_required(Permission.FOLLOW)
+def unfollow(username): #取注用户
+    """
+     该视图函数先加载请求的用户，确保当前用户存在且当前登陆用户还没有关注这个用户，
+     然后调用User模型中定义的辅助方法follow()
+    """
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('Invalid user')
+        return redirect(url_for('.index'))
+    if not current_user.is_following(user):
+        flash('You are not following this user')
+        return redirect(url_for('.user', username=username))
+    current_user.unfollow(user)
+    flash('You are not following %s.' %username)
+    return redirect(url_for('.user', username= username))
+
+@main.route('/followers/<username>')
+def followers(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('Invalid user.')
+        return redirect(url_for('.index'))
+    page = request.args.get('page', 1, tpye=int)
+    pagination = user.followers.paginate(
+        page, per_page=20, error_out=False)
+    follows = [{'user': item.follower, 'timestamp': item.timestamp}
+               for item in pagination.items]
+    return render_template('followers.html', user=user, title='Followers of',
+                           endpoint='.followers', pagination=pagination, follows=follows)
+
+@main.route('/followed_by/<username>')
+def followed_by(username):
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        flash('Invalid user.')
+        return redirect(url_for('.index'))
+    page = request.args.get('page', 1, type=int)
+    pagination = user.followed.paginate(
+        page, per_page=20, error_out=False)
+    follows = [{'user': item.followed, 'timestamp': item.timestamp}
+               for item in pagination.items]
+    return render_template('followers.html', user=user, title="Followed by",
+                           endpoint='.followed_by', pagination=pagination,
+                           follows=follows)
+
+@main.route('/all')
+@login_required
+def show_all():
+    resp = make_response(redirect(url_for('.index')))
+    resp.set_cookie('show_followed', '', max_age=30*24*60*60) #前俩参数是cookie的名和值，最后一个是过期时间
+    return resp
+
+@main.route('/followed')
+@login_required
+def show_followed():
+    resp = make_response(redirect(url_for('.index')))
+    resp.set_cookie('show_followed', '1', max_age=30*24*60*60)
+    return resp

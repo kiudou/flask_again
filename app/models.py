@@ -12,6 +12,12 @@ from flask import request
 from markdown import markdown
 import bleach
 
+class Follow(db.Model):
+    __tablename__ = 'follows'
+    follower_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    followed_id = db.Column(db.Integer, db.ForeignKey('users.id'), primary_key=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+
 class Post(db.Model): #文章模型
     __tablename__ = 'posts'
     id = db.Column(db.Integer, primary_key=True)
@@ -101,6 +107,17 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow) #最后访问时间
     avatar_hash = db.Column(db.String(32)) #使用缓存的MD5散列值生成Gravatar URL
     posts = db.relationship('Post', backref='author', lazy='dynamic')
+    followed = db.relationship('Follow',
+                               foreign_keys=[Follow.follower_id],
+                               backref=db.backref('follower',lazy='joined'), #回引Follow模型
+                               lazy='dynamic',
+                               cascade='all, delete-orphan')
+    followers = db.relationship('Follow',
+                               foreign_keys=[Follow.followed_id],
+                               backref=db.backref('followed',lazy='joined'), #joined，立即从联结查询中加载相关对象
+                               lazy='dynamic',
+                               cascade='all, delete-orphan')
+
     def __init__(self, **kwargs):
         """
         User类的构造函数首先调用基类的构造函数，如果创建基类对象后还没有定义角色，
@@ -175,27 +192,53 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
         return '{url}/{hash}?s={size}&d={default}&r={rating}'.format(
             url=url, hash=hash, size=size, default=default, rating=rating)
 
-    @staticmethod #生成虚拟用户和博客文章
-    def generate_fake(count=100):
-        from sqlalchemy.exc import IntegrityError
-        from random import seed
-        import forgery_py
+    # @staticmethod #生成虚拟用户和博客文章
+    # def generate_fake(count=100):
+    #     from sqlalchemy.exc import IntegrityError
+    #     from random import seed
+    #     import forgery_py
+    #
+    #     seed() #seed() 方法改变随机数生成器的种子，可以在调用其他随机模块函数之前调用此函数
+    #     for i in range(count): #信息随机生成
+    #         u = User(email=forgery_py.internet.email_address(),
+    #                  username=forgery_py.internet.user_name(),
+    #                  password=forgery_py.lorem_ipsum.word(),
+    #                  confirmed=True,
+    #                  name=forgery_py.name.full_name(),
+    #                  location=forgery_py.address.city(),
+    #                  about_me=forgery_py.lorem_ipsum.sentence(),
+    #                  member_since=forgery_py.date.date(True))
+    #         db.session.add(u)
+    #         try:
+    #             db.session.commit()
+    #         except IntegrityError:
+    #             db.session.rollback() #如果信息有重复的，则进行回滚，不写入数据库
 
-        seed() #seed() 方法改变随机数生成器的种子，可以在调用其他随机模块函数之前调用此函数
-        for i in range(count): #信息随机生成
-            u = User(email=forgery_py.internet.email_address(),
-                     username=forgery_py.internet.user_name(),
-                     password=forgery_py.lorem_ipsum.word(),
-                     confirmed=True,
-                     name=forgery_py.name.full_name(),
-                     location=forgery_py.address.city(),
-                     about_me=forgery_py.lorem_ipsum.sentence(),
-                     member_since=forgery_py.date.date(True))
-            db.session.add(u)
-            try:
+    @staticmethod
+    def add_self_follows():
+        for user in User.query.all():
+            if not user.is_following(user):
+                user.follow(user)
+                db.session.add(user)
                 db.session.commit()
-            except IntegrityError:
-                db.session.rollback() #如果信息有重复的，则进行回滚，不写入数据库
+
+    def follow(self, user):
+        if not self.is_following(user):
+            f = Follow(follower=self, followed=user)
+            db.session.add(f)
+    def unfollow(self, user):
+        f = self.followed.filter_by(followed_id=user.id).first()
+        if f:
+            db.session.delete(f)
+    def is_following(self, user):
+        return self.followed.filter_by(followed_id=user.id).first() is not None
+    def is_followed_by(self, user):
+        return self.followers.filter_by(follower_id=user.id).first() is not None
+
+    @property #已定义为属性，所以调用时不添加()
+    def followed_posts(self):
+        return Post.query.join(Follow, Follow.followed_id == Post.author_id)\
+            .filter(Follow.follower_id == self.id)
 
 
 #程序不用先检查用户是否登陆，就能自由调用current_user.can()和current_user.ia_administrator
@@ -224,3 +267,6 @@ class Permission: #操作的权限位
     WRITE_ARTICLES = 0x04
     MODERATE_COMMENTS = 0x08
     ADMINISTER = 0x80
+
+
+
