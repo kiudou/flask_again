@@ -25,6 +25,7 @@ class Post(db.Model): #文章模型
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     body_html = db.Column(db.Text)
+    comments = db.relationship('Comment', backref='post', lazy='dynamic')
 
     # @staticmethod
     # def generate_fake(count=100):
@@ -117,6 +118,7 @@ class User(UserMixin, db.Model): #UserMixin包含p82页的方法的默认实现
                                backref=db.backref('followed',lazy='joined'), #joined，立即从联结查询中加载相关对象
                                lazy='dynamic',
                                cascade='all, delete-orphan')
+    comments = db.relationship('Comment', backref='author', lazy='dynamic')
 
     def __init__(self, **kwargs):
         """
@@ -269,4 +271,19 @@ class Permission: #操作的权限位
     ADMINISTER = 0x80
 
 
+
+class Comment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    body = db.Column(db.Text)
+    body_html = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
+    disabled = db.Column(db.Boolean)
+    author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
+
+    @staticmethod
+    def on_changed_body(target, value, oldvalue, initiator):
+        allowed_tags = ['a', 'abbr', 'acronym', 'b', 'code', 'em', 'i', 'strong']
+        target.body_html = bleach.linkify(bleach.clean(
+            markdown(value, output_format='html'), tags==allowed_tags, strip=True))
 

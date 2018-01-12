@@ -13,7 +13,7 @@ from flask_pagedown.fields import PageDownField
 class NameForm(Form): #web登陆表单
     # 文本字段,StringField表示属性为type="text"的<input>属性,可选参数validators指定一个由验证函数组成的列表
     # 接受用户提交数据之前验证数据，Required()确保提交的字段不为空
-    name = StringField('What is your name?', validators=[Required()])
+    name = StringField('What is your name?', validators=[DataRequired()])
     submit = SubmitField('Submit') #提交按钮,SubmitField表示属性为type="text"的<input>属性
 
 #用户表单
@@ -56,7 +56,10 @@ class EditProfileAdminForm(FlaskForm):
 
 
 class PostForm(Form): #博客文章表单
-    body = PageDownField("what's on your mind?", validators=[Required()])
+    body = PageDownField("what's on your mind?", validators=[DataRequired()])
     submit = SubmitField('submit')
 
 
+class CommentForm(Form): #评论输入
+    body = StringField('', validators=[DataRequired()])
+    submit = SubmitField('Submit')
