@@ -44,6 +44,8 @@ def create_app(config_name):
     使用url_prefix,注册蓝本中定义的所有路由都会加上指定的前缀
     例如该例子/login路由会注册成/auth/login，web中完整路径为http://localhost:5000/auth/login
     """
+    from .api import api as api_blueprint
+    app.register_blueprint(api_blueprint, url_prefix='/api/v1')
 
     login_manager.init_app(app)
     return app

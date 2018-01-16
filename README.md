@@ -1,5 +1,5 @@
 # 登陆账号 #
-下载该项目后，因为该项目里已包含虚拟环境和数据库，所以直接登陆账号即可，该账号为管理员账号
+克隆该项目后，因为该项目里已包含虚拟环境和数据库，所以运行manager.py文件，登陆账号即可，该账号为管理员账号
 
 账号：1@1.com
 
@@ -8,15 +8,23 @@
 ----------
 
 # 运行 #
+打开cmd，在当前文件夹下，进入虚拟环境，执行
 
-运行manager.py文件，打开127.0.0.1:5000即可进入
+	venv\Scripts\activate
+
+运行manager.py文件,执行
+	
+	python manager,py
+
+打开浏览器，输入127.0.0.1:5000即可进入
 
 ----------
 
 
 # 程序结构 #
-
+![结构](http://r.photo.store.qq.com/psb?/V13zmFZT2vlTI6/71FqoA7WZHHsvxboxXCLv8YdZcPc78TCYasNvmpqGaw!/r/dD8BAAAAAAAA)
 	
+
 
 ----------
 
