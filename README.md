@@ -1,5 +1,5 @@
 # 登陆账号 #
-克隆该项目后，因为该项目里已包含虚拟环境和数据库，所以运行manager.py文件，登陆账号即可，该账号为管理员账号
+克隆该项目到本地后，因为该项目里已包含虚拟环境和数据库，所以进入虚拟环境，直接运行manager.py文件，登陆账号即可，该账号为管理员账号
 
 账号：1@1.com
 
@@ -8,9 +8,10 @@
 ----------
 
 # 运行 #
-打开cmd，在当前文件夹下，进入虚拟环境，执行
+打开终端，在当前文件夹下，进入虚拟环境，执行
 
-	venv\Scripts\activate
+	venv\Scripts\activate #windows
+	source venv/bin/activate #max or linux
 
 运行manager.py文件,执行
 	
@@ -22,9 +23,11 @@
 
 
 # 程序结构 #
+
+
 ![结构](http://r.photo.store.qq.com/psb?/V13zmFZT2vlTI6/71FqoA7WZHHsvxboxXCLv8YdZcPc78TCYasNvmpqGaw!/r/dD8BAAAAAAAA)
 	
-
+http://r.photo.store.qq.com/psb?/V13zmFZT2vlTI6/71FqoA7WZHHsvxboxXCLv8YdZcPc78TCYasNvmpqGaw!/r/dD8BAAAAAAAA
 
 ----------
 
@@ -40,8 +43,6 @@ requirements.txt  用于记录所有依赖包及其精确的版本号
 
 	(venv) $ pip install -r requirements.txt
 
-
-----------
 
 
 # 2.数据库的迁移 #
